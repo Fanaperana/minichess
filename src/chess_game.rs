@@ -1,14 +1,14 @@
 use crate::stockfish::StockfishEngine;
 use crate::ui::{display_board, get_user_input, print_help};
 use anyhow::{anyhow, Result};
-use chess::{ChessMove, Color, Game, Square, MoveGen};
+use chess::{ChessMove, Color, Game, Square, MoveGen, Piece};
 use std::str::FromStr;
 
 pub struct ChessGame {
     game: Game,
     engine: StockfishEngine,
     player_color: Color,
-    move_history: Vec<(ChessMove, String)>, // (move, description)
+    move_history: Vec<(ChessMove, String, String)>, // (move, description, detailed_description)
 }
 
 impl ChessGame {
@@ -101,7 +101,9 @@ impl ChessGame {
                         Ok(move_made) => {
                             // Add player move to history
                             let player_color_str = if self.player_color == Color::White { "White" } else { "Black" };
-                            self.move_history.push((move_made, format!("{} (You)", player_color_str)));
+                            let move_description = self.describe_move(&move_made, &self.game.current_position());
+                            let detailed_description = format!("{} (You): {}", player_color_str, move_description);
+                            self.move_history.push((move_made, player_color_str.to_string(), detailed_description));
                             
                             display_board(&self.game.current_position());
                             return Ok(GameAction::Continue);
@@ -169,11 +171,15 @@ impl ChessGame {
         
         let best_move = self.engine.get_best_move(&self.game.current_position()).await?;
         
-        println!("Computer plays: {}", best_move);
+        // Describe the move before making it
+        let move_description = self.describe_move(&best_move, &self.game.current_position());
+        
+        println!("Computer plays: {} ({})", best_move, move_description);
         
         // Add computer move to history
         let computer_color_str = if self.player_color == Color::White { "Black" } else { "White" };
-        self.move_history.push((best_move, format!("{} (Computer)", computer_color_str)));
+        let detailed_description = format!("{} (Computer): {}", computer_color_str, move_description);
+        self.move_history.push((best_move, computer_color_str.to_string(), detailed_description));
         
         self.game.make_move(best_move);
         display_board(&self.game.current_position());
@@ -201,7 +207,7 @@ impl ChessGame {
         }
 
         println!("\n=== Move History ===");
-        for (i, (chess_move, _player)) in self.move_history.iter().enumerate() {
+        for (i, (chess_move, _player, _detailed)) in self.move_history.iter().enumerate() {
             let move_number = (i / 2) + 1;
             
             if i % 2 == 0 {
@@ -219,10 +225,84 @@ impl ChessGame {
         }
         
         println!("\nDetailed history:");
-        for (i, (chess_move, player)) in self.move_history.iter().enumerate() {
-            println!("{}. {} - {}", i + 1, chess_move, player);
+        for (i, (_chess_move, _player, detailed_description)) in self.move_history.iter().enumerate() {
+            println!("{}. {}", i + 1, detailed_description);
         }
         println!("==================\n");
+    }
+
+    fn describe_move(&self, chess_move: &ChessMove, board: &chess::Board) -> String {
+        let from_square = chess_move.get_source();
+        let to_square = chess_move.get_dest();
+        
+        // Get the piece that's moving
+        let piece = board.piece_on(from_square);
+        let piece_color = board.color_on(from_square);
+        
+        let _piece_name = match piece {
+            Some(Piece::King) => "King",
+            Some(Piece::Queen) => "Queen", 
+            Some(Piece::Rook) => "Rook",
+            Some(Piece::Bishop) => "Bishop",
+            Some(Piece::Knight) => "Knight",
+            Some(Piece::Pawn) => "Pawn",
+            None => "Unknown",
+        };
+        
+        let piece_fen = match (piece, piece_color) {
+            (Some(Piece::King), Some(Color::White)) => "K",
+            (Some(Piece::Queen), Some(Color::White)) => "Q",
+            (Some(Piece::Rook), Some(Color::White)) => "R",
+            (Some(Piece::Bishop), Some(Color::White)) => "B",
+            (Some(Piece::Knight), Some(Color::White)) => "N",
+            (Some(Piece::Pawn), Some(Color::White)) => "P",
+            (Some(Piece::King), Some(Color::Black)) => "k",
+            (Some(Piece::Queen), Some(Color::Black)) => "q",
+            (Some(Piece::Rook), Some(Color::Black)) => "r",
+            (Some(Piece::Bishop), Some(Color::Black)) => "b",
+            (Some(Piece::Knight), Some(Color::Black)) => "n",
+            (Some(Piece::Pawn), Some(Color::Black)) => "p",
+            _ => "?",
+        };
+        
+        // Check if it's a capture
+        let is_capture = board.piece_on(to_square).is_some();
+        let captured_piece = if is_capture {
+            match board.piece_on(to_square) {
+                Some(Piece::Queen) => " captures Queen",
+                Some(Piece::Rook) => " captures Rook", 
+                Some(Piece::Bishop) => " captures Bishop",
+                Some(Piece::Knight) => " captures Knight",
+                Some(Piece::Pawn) => " captures Pawn",
+                _ => " captures piece",
+            }
+        } else {
+            ""
+        };
+        
+        // Check for promotion
+        let promotion = match chess_move.get_promotion() {
+            Some(Piece::Queen) => " promotes to Queen",
+            Some(Piece::Rook) => " promotes to Rook",
+            Some(Piece::Bishop) => " promotes to Bishop", 
+            Some(Piece::Knight) => " promotes to Knight",
+            _ => "",
+        };
+        
+        // Check for castling
+        if piece == Some(Piece::King) {
+            let king_start = if piece_color == Some(Color::White) { Square::E1 } else { Square::E8 };
+            if from_square == king_start {
+                if to_square == Square::G1 || to_square == Square::G8 {
+                    return format!("{} castles kingside", piece_fen);
+                } else if to_square == Square::C1 || to_square == Square::C8 {
+                    return format!("{} castles queenside", piece_fen);
+                }
+            }
+        }
+        
+        format!("{} {}->{}{}{}", 
+                piece_fen, from_square, to_square, captured_piece, promotion)
     }
 
     fn display_game_result(&self) {
