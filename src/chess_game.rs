@@ -98,7 +98,7 @@ impl ChessGame {
                 }
                 _ => {
                     match self.parse_and_make_move(&input) {
-                        Ok(move_made) => {
+                        Ok(_move_made) => {
                             // Add player move to history (describe_move is called inside parse_and_make_move now)
                             display_board(&self.game.current_position());
                             return Ok(GameAction::Continue);
@@ -246,7 +246,7 @@ impl ChessGame {
         let piece = board.piece_on(from_square);
         let piece_color = board.color_on(from_square);
         
-        let piece_name = match piece {
+        let _piece_name = match piece {
             Some(Piece::King) => "King",
             Some(Piece::Queen) => "Queen", 
             Some(Piece::Rook) => "Rook",
