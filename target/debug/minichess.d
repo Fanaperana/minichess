@@ -1,1 +1,0 @@
-/Users/pralambomanarivo/Documents/CODE/Stockfish/minichess/target/debug/minichess: /Users/pralambomanarivo/Documents/CODE/Stockfish/minichess/src/chess_game.rs /Users/pralambomanarivo/Documents/CODE/Stockfish/minichess/src/main.rs /Users/pralambomanarivo/Documents/CODE/Stockfish/minichess/src/stockfish.rs /Users/pralambomanarivo/Documents/CODE/Stockfish/minichess/src/ui.rs
