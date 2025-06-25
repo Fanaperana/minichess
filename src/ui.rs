@@ -81,6 +81,7 @@ pub fn print_help() {
     println!("  • For promotions, add the piece: e7e8q (queen), e7e8r (rook), etc.");
     println!("  • 'moves' - Show all legal moves");
     println!("  • 'history' - Show move history");
+    println!("  • 'show' or 'board' - Redisplay the current board");
     println!("  • 'h' or 'help' - Show this help");
     println!("  • 'q' or 'quit' - Quit the game");
     println!("\nMove format examples:");

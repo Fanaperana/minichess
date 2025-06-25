@@ -92,6 +92,10 @@ impl ChessGame {
                     self.show_move_history();
                     continue;
                 }
+                "show" | "showboard" | "board" => {
+                    display_board(&self.game.current_position());
+                    continue;
+                }
                 _ => {
                     match self.parse_and_make_move(&input) {
                         Ok(move_made) => {
