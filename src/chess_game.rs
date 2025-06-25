@@ -99,12 +99,7 @@ impl ChessGame {
                 _ => {
                     match self.parse_and_make_move(&input) {
                         Ok(move_made) => {
-                            // Add player move to history
-                            let player_color_str = if self.player_color == Color::White { "White" } else { "Black" };
-                            let move_description = self.describe_move(&move_made, &self.game.current_position());
-                            let detailed_description = format!("{} (You): {}", player_color_str, move_description);
-                            self.move_history.push((move_made, player_color_str.to_string(), detailed_description));
-                            
+                            // Add player move to history (describe_move is called inside parse_and_make_move now)
                             display_board(&self.game.current_position());
                             return Ok(GameAction::Continue);
                         }
@@ -162,7 +157,17 @@ impl ChessGame {
             return Err(anyhow!("Move is not legal in current position"));
         }
 
+        // Describe the move BEFORE making it (when we can still see the piece)
+        let move_description = self.describe_move(&chess_move, &self.game.current_position());
+        
+        // Make the move
         self.game.make_move(chess_move);
+        
+        // Add to history
+        let player_color_str = if self.player_color == Color::White { "White" } else { "Black" };
+        let detailed_description = format!("{} (You): {}", player_color_str, move_description);
+        self.move_history.push((chess_move, player_color_str.to_string(), detailed_description));
+        
         Ok(chess_move)
     }
 
@@ -206,16 +211,18 @@ impl ChessGame {
             return;
         }
 
-        println!("\n=== Move History ===");
+        println!("\n=== Move History (Algebraic Notation) ===");
         for (i, (chess_move, _player, _detailed)) in self.move_history.iter().enumerate() {
             let move_number = (i / 2) + 1;
             
             if i % 2 == 0 {
                 // White's move (or first player's move)
-                print!("{}. {} ", move_number, chess_move);
+                let algebraic = self.to_algebraic_notation(chess_move, i);
+                print!("{}. {} ", move_number, algebraic);
             } else {
                 // Black's move (or second player's move)
-                println!("{}", chess_move);
+                let algebraic = self.to_algebraic_notation(chess_move, i);
+                println!("{}", algebraic);
             }
         }
         
@@ -224,11 +231,11 @@ impl ChessGame {
             println!();
         }
         
-        println!("\nDetailed history:");
+        println!("\nDetailed coordinate history:");
         for (i, (_chess_move, _player, detailed_description)) in self.move_history.iter().enumerate() {
             println!("{}. {}", i + 1, detailed_description);
         }
-        println!("==================\n");
+        println!("==========================================\n");
     }
 
     fn describe_move(&self, chess_move: &ChessMove, board: &chess::Board) -> String {
@@ -239,7 +246,7 @@ impl ChessGame {
         let piece = board.piece_on(from_square);
         let piece_color = board.color_on(from_square);
         
-        let _piece_name = match piece {
+        let piece_name = match piece {
             Some(Piece::King) => "King",
             Some(Piece::Queen) => "Queen", 
             Some(Piece::Rook) => "Rook",
@@ -303,6 +310,123 @@ impl ChessGame {
         
         format!("{} {}->{}{}{}", 
                 piece_fen, from_square, to_square, captured_piece, promotion)
+    }
+
+    fn to_algebraic_notation(&self, chess_move: &ChessMove, move_index: usize) -> String {
+        // Reconstruct the board state at the time of this move
+        let mut temp_game = Game::new();
+        
+        // Replay all moves up to (but not including) this move
+        for i in 0..move_index {
+            temp_game.make_move(self.move_history[i].0);
+        }
+        
+        let board = temp_game.current_position();
+        let from_square = chess_move.get_source();
+        let to_square = chess_move.get_dest();
+        
+        // Get the piece that's moving
+        let piece = board.piece_on(from_square);
+        let piece_color = board.color_on(from_square);
+        
+        // Check if it's a capture
+        let is_capture = board.piece_on(to_square).is_some();
+        
+        // Check for castling first
+        if piece == Some(Piece::King) {
+            let king_start = if piece_color == Some(Color::White) { Square::E1 } else { Square::E8 };
+            if from_square == king_start {
+                if to_square == Square::G1 || to_square == Square::G8 {
+                    return "0-0".to_string();
+                } else if to_square == Square::C1 || to_square == Square::C8 {
+                    return "0-0-0".to_string();
+                }
+            }
+        }
+        
+        let mut notation = String::new();
+        
+        // Add piece letter (except for pawns)
+        match piece {
+            Some(Piece::King) => notation.push('K'),
+            Some(Piece::Queen) => notation.push('Q'),
+            Some(Piece::Rook) => notation.push('R'),
+            Some(Piece::Bishop) => notation.push('B'),
+            Some(Piece::Knight) => notation.push('N'),
+            Some(Piece::Pawn) => {
+                // For pawn captures, include the file
+                if is_capture {
+                    notation.push(from_square.to_string().chars().next().unwrap());
+                }
+            },
+            None => return chess_move.to_string(), // Fallback
+        }
+        
+        // Check for disambiguation (if multiple pieces of same type can reach the destination)
+        if piece != Some(Piece::Pawn) && piece != Some(Piece::King) {
+            let legal_moves: Vec<ChessMove> = MoveGen::new_legal(&board).collect();
+            let same_piece_moves: Vec<ChessMove> = legal_moves.iter()
+                .filter(|m| {
+                    m.get_dest() == to_square &&
+                    board.piece_on(m.get_source()) == piece &&
+                    m.get_source() != from_square
+                })
+                .cloned()
+                .collect();
+            
+            if !same_piece_moves.is_empty() {
+                // Need disambiguation
+                let from_file = from_square.to_string().chars().next().unwrap();
+                let from_rank = from_square.to_string().chars().nth(1).unwrap();
+                
+                // Check if file disambiguation is enough
+                let same_file = same_piece_moves.iter()
+                    .any(|m| m.get_source().to_string().chars().next().unwrap() == from_file);
+                
+                if !same_file {
+                    notation.push(from_file);
+                } else {
+                    // Need rank disambiguation
+                    notation.push(from_rank);
+                }
+            }
+        }
+        
+        // Add capture notation
+        if is_capture {
+            notation.push('x');
+        }
+        
+        // Add destination square
+        notation.push_str(&to_square.to_string());
+        
+        // Add promotion
+        if let Some(promotion_piece) = chess_move.get_promotion() {
+            notation.push('=');
+            match promotion_piece {
+                Piece::Queen => notation.push('Q'),
+                Piece::Rook => notation.push('R'),
+                Piece::Bishop => notation.push('B'),
+                Piece::Knight => notation.push('N'),
+                _ => {}
+            }
+        }
+        
+        // Check for check or checkmate (we'd need to make the move and see)
+        let mut temp_board = board.clone();
+        temp_board = temp_board.make_move_new(*chess_move);
+        
+        if temp_board.checkers().popcnt() > 0 {
+            // It's check, but is it checkmate?
+            let legal_after: Vec<ChessMove> = MoveGen::new_legal(&temp_board).collect();
+            if legal_after.is_empty() {
+                notation.push('#'); // Checkmate
+            } else {
+                notation.push('+'); // Check
+            }
+        }
+        
+        notation
     }
 
     fn display_game_result(&self) {
