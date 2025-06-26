@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
                 .long("stockfish-path")
                 .value_name("PATH")
                 .help("Path to Stockfish executable")
-                .default_value("/Users/pralambomanarivo/Documents/CODE/Stockfish/src/stockfish"),
+                .default_value("/Users/pralambomanarivo/Documents/CODE/Stockfish/src/stockfish"), // Adjust this path as needed
         )
         .arg(
             Arg::new("difficulty")
