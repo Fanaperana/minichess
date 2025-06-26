@@ -5,7 +5,7 @@ Minichess is a simplified chess engine and UI written in Rust. It allows you to 
 ## Features
 - Play minichess against a simple AI or another player
 - Command-line user interface
-- Stockfish integration for stronger AI play (optional)
+- Stockfish integration for stronger AI play (required for advanced AI)
 - Modular code structure for easy extension
 - **FEN support:** Load and display board positions using Forsyth-Edwards Notation
 - **SAN support:** Input and display moves using Standard Algebraic Notation
@@ -93,7 +93,8 @@ Detailed coordinate history:
 
 ### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable recommended)
-- (Optional) [Stockfish](https://stockfishchess.org/download/) binary for advanced AI
+- [Stockfish](https://stockfishchess.org/download/) chess engine (required for advanced AI)
+  - You must have the Stockfish binary available in your PATH, or specify its location with the `--stockfish-path` argument.
 
 ### Build and Run
 
@@ -107,6 +108,13 @@ Run the game:
 
 ```bash
 cargo run --release
+```
+
+#### Using Stockfish from a Custom Path
+If Stockfish is not in your PATH, you can specify its location:
+
+```bash
+cargo run --quiet -- --stockfish-path /path/to/your/stockfish
 ```
 
 ### Using Stockfish
