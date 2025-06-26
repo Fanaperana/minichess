@@ -1,11 +1,6 @@
 use chess::{Board, Color, Piece, Square};
 use std::io::{self, Write};
 
-#[allow(unused)]
-pub fn display_board(board: &Board) {
-    display_board_oriented(board, Color::White);
-}
-
 pub fn display_board_for_player(board: &Board, player_color: Color) {
     display_board_oriented(board, player_color);
 }
@@ -136,6 +131,7 @@ pub fn print_help() {
     println!("  • 'moves' - Show all legal moves");
     println!("  • 'history' - Show move history");
     println!("  • 'show' or 'board' - Redisplay the current board");
+    println!("  • 'fen' - Show FEN notation of current position");
     println!("  • 'h' or 'help' - Show this help");
     println!("  • 'q' or 'quit' - Quit the game");
     println!("\nMove format examples:");

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chess::{Board, ChessMove};
 use std::str::FromStr;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -16,7 +16,12 @@ impl StockfishEngine {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()
-            .map_err(|e| anyhow!("Failed to start Stockfish: {}. Make sure Stockfish is installed and in PATH", e))?;
+            .map_err(|e| {
+                anyhow!(
+                    "Failed to start Stockfish: {}. Make sure Stockfish is installed and in PATH",
+                    e
+                )
+            })?;
 
         let stdout = process
             .stdout
@@ -57,7 +62,7 @@ impl StockfishEngine {
         loop {
             line.clear();
             self.reader.read_line(&mut line).await?;
-            
+
             if line.starts_with("bestmove") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 2 {
@@ -82,7 +87,7 @@ impl StockfishEngine {
         loop {
             line.clear();
             self.reader.read_line(&mut line).await?;
-            
+
             if line.trim() == expected {
                 break;
             }
