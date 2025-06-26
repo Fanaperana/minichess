@@ -1,7 +1,24 @@
 use chess::{Board, Color, Piece, Square};
 use std::io::{self, Write};
 
+#[allow(unused)]
 pub fn display_board(board: &Board) {
+    display_board_oriented(board, Color::White);
+}
+
+pub fn display_board_for_player(board: &Board, player_color: Color) {
+    display_board_oriented(board, player_color);
+}
+
+fn display_board_oriented(board: &Board, player_color: Color) {
+    if player_color == Color::White {
+        display_board_white_perspective(board);
+    } else {
+        display_board_black_perspective(board);
+    }
+}
+
+fn display_board_white_perspective(board: &Board) {
     println!("\n    a   b   c   d   e   f   g   h");
     println!("  ┌───┬───┬───┬───┬───┬───┬───┬───┐");
 
@@ -14,14 +31,7 @@ pub fn display_board(board: &Board) {
                 chess::File::from_index(file),
             );
             
-            let piece_char = match board.piece_on(square) {
-                Some(piece) => {
-                    let color = board.color_on(square).unwrap();
-                    piece_to_unicode(piece, color)
-                }
-                None => ' ',
-            };
-            
+            let piece_char = get_piece_char(board, square);
             print!(" {} │", piece_char);
         }
         
@@ -35,6 +45,50 @@ pub fn display_board(board: &Board) {
     println!("\n  └───┴───┴───┴───┴───┴───┴───┴───┘");
     println!("    a   b   c   d   e   f   g   h\n");
     
+    display_game_status(board);
+}
+
+fn display_board_black_perspective(board: &Board) {
+    println!("\n    h   g   f   e   d   c   b   a");
+    println!("  ┌───┬───┬───┬───┬───┬───┬───┬───┐");
+
+    for rank in 0..8 {
+        print!("{} │", rank + 1);
+        
+        for file in (0..8).rev() {
+            let square = Square::make_square(
+                chess::Rank::from_index(rank),
+                chess::File::from_index(file),
+            );
+            
+            let piece_char = get_piece_char(board, square);
+            print!(" {} │", piece_char);
+        }
+        
+        print!(" {}", rank + 1);
+        
+        if rank < 7 {
+            println!("\n  ├───┼───┼───┼───┼───┼───┼───┼───┤");
+        }
+    }
+    
+    println!("\n  └───┴───┴───┴───┴───┴───┴───┴───┘");
+    println!("    h   g   f   e   d   c   b   a\n");
+    
+    display_game_status(board);
+}
+
+fn get_piece_char(board: &Board, square: Square) -> char {
+    match board.piece_on(square) {
+        Some(piece) => {
+            let color = board.color_on(square).unwrap();
+            piece_to_unicode(piece, color)
+        }
+        None => ' ',
+    }
+}
+
+fn display_game_status(board: &Board) {
     // Show whose turn it is
     let turn = if board.side_to_move() == Color::White {
         "White"

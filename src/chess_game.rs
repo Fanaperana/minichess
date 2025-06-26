@@ -1,5 +1,5 @@
 use crate::stockfish::StockfishEngine;
-use crate::ui::{display_board, get_user_input, print_help};
+use crate::ui::{display_board_for_player, get_user_input, print_help};
 use anyhow::{anyhow, Result};
 use chess::{ChessMove, Color, Game, Square, MoveGen, Piece};
 use std::str::FromStr;
@@ -44,7 +44,7 @@ impl ChessGame {
 
     pub async fn run(&mut self) -> Result<()> {
         println!("\nGame started! You are playing as {:?}", self.player_color);
-        display_board(&self.game.current_position());
+        display_board_for_player(&self.game.current_position(), self.player_color);
 
         // If player is black, let computer make first move
         if self.player_color == Color::Black {
@@ -93,14 +93,14 @@ impl ChessGame {
                     continue;
                 }
                 "show" | "showboard" | "board" => {
-                    display_board(&self.game.current_position());
+                    display_board_for_player(&self.game.current_position(), self.player_color);
                     continue;
                 }
                 _ => {
                     match self.parse_and_make_move(&input) {
                         Ok(_move_made) => {
                             // Add player move to history (describe_move is called inside parse_and_make_move now)
-                            display_board(&self.game.current_position());
+                            display_board_for_player(&self.game.current_position(), self.player_color);
                             return Ok(GameAction::Continue);
                         }
                         Err(e) => {
@@ -187,7 +187,7 @@ impl ChessGame {
         self.move_history.push((best_move, computer_color_str.to_string(), detailed_description));
         
         self.game.make_move(best_move);
-        display_board(&self.game.current_position());
+        display_board_for_player(&self.game.current_position(), self.player_color);
         
         Ok(())
     }
