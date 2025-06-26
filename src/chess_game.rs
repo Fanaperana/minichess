@@ -11,6 +11,7 @@ pub struct ChessGame {
     move_history: Vec<(ChessMove, String, String)>, // (move, description, detailed_description)
     game_states: Vec<Game>,                         // Stack of game states for undo/redo
     current_state_index: usize,                     // Current position in the game_states stack
+    full_move_history: Vec<(ChessMove, String, String)>, // Complete history for redo reconstruction
 }
 
 impl ChessGame {
@@ -43,6 +44,7 @@ impl ChessGame {
             move_history: Vec::new(),
             game_states: vec![game], // Start with initial position
             current_state_index: 0,
+            full_move_history: Vec::new(),
         })
     }
 
@@ -199,11 +201,13 @@ impl ChessGame {
             "Black"
         };
         let detailed_description = format!("{} (You): {}", player_color_str, move_description);
-        self.move_history.push((
+        let move_entry = (
             chess_move,
             player_color_str.to_string(),
             detailed_description,
-        ));
+        );
+        self.move_history.push(move_entry.clone());
+        self.full_move_history.push(move_entry);
 
         Ok(chess_move)
     }
@@ -229,11 +233,13 @@ impl ChessGame {
         };
         let detailed_description =
             format!("{} (Computer): {}", computer_color_str, move_description);
-        self.move_history.push((
+        let move_entry = (
             best_move,
             computer_color_str.to_string(),
             detailed_description,
-        ));
+        );
+        self.move_history.push(move_entry.clone());
+        self.full_move_history.push(move_entry);
 
         self.game.make_move(best_move);
 
@@ -541,6 +547,8 @@ impl ChessGame {
         // Remove any future states if we're in the middle of history
         if self.current_state_index < self.game_states.len() - 1 {
             self.game_states.truncate(self.current_state_index + 1);
+            // Also truncate full history to match
+            self.full_move_history.truncate(self.current_state_index);
         }
 
         // Add the new state
@@ -579,6 +587,9 @@ impl ChessGame {
             if moves_undone > 0 {
                 self.game = self.game_states[self.current_state_index].clone();
 
+                // Rebuild move_history to match current state
+                self.move_history = self.full_move_history[0..self.current_state_index].to_vec();
+
                 // Ensure we're back to the player's turn
                 if self.game.current_position().side_to_move() != self.player_color {
                     println!("Warning: Not your turn after undo. Game state may be inconsistent.");
@@ -598,28 +609,30 @@ impl ChessGame {
             return false;
         }
 
-        // Redo moves (typically 1 or 2 to get back to player's turn)
-        let moves_to_redo = if self.current_state_index + 2 < self.game_states.len()
-            && !self.is_in_computer_turn()
-        {
-            2
-        } else {
-            1
-        };
+        // Redo moves to get back to player's turn (usually 2 moves: player + computer)
+        let available_states = self.game_states.len() - 1 - self.current_state_index;
+        let moves_to_redo = std::cmp::min(2, available_states);
 
         for _ in 0..moves_to_redo {
             if self.current_state_index < self.game_states.len() - 1 {
                 self.current_state_index += 1;
-                // We'd need to reconstruct move history here, but for simplicity
-                // we'll just show the position
             }
         }
 
         self.game = self.game_states[self.current_state_index].clone();
-        println!("Redone to position {}", self.current_state_index);
+
+        // Rebuild move_history to match current state
+        self.move_history = self.full_move_history[0..self.current_state_index].to_vec();
+
+        println!(
+            "Redone to position {} (move {})",
+            self.current_state_index,
+            (self.current_state_index + 1) / 2
+        );
         return true;
     }
 
+    #[allow(dead_code)]
     fn is_in_computer_turn(&self) -> bool {
         self.game.current_position().side_to_move() != self.player_color
     }
