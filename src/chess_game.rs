@@ -554,30 +554,41 @@ impl ChessGame {
             return false;
         }
 
-        // Check if we're trying to undo into the middle of a computer move sequence
         if !self.move_history.is_empty() {
-            let moves_to_undo = if self.is_in_computer_turn() { 2 } else { 1 };
+            // Always undo back to the player's turn
+            let mut moves_undone = 0;
+            let target_moves = if self.game.current_position().side_to_move() == self.player_color {
+                // It's currently player's turn, undo 2 moves (player + computer)
+                2
+            } else {
+                // It's currently computer's turn, undo 1 move (computer) to get back to player's turn
+                1
+            };
 
-            if self.current_state_index < moves_to_undo {
-                println!("Cannot undo: Would go before game start.");
-                return false;
-            }
-
-            // Undo the appropriate number of moves
-            for _ in 0..moves_to_undo {
-                if self.current_state_index > 0 {
+            for _ in 0..target_moves {
+                if self.current_state_index > 0 && !self.move_history.is_empty() {
                     self.current_state_index -= 1;
-                    if !self.move_history.is_empty() {
-                        let (undone_move, _player, description) = self.move_history.pop().unwrap();
-                        println!("Undone: {} - {}", undone_move, description);
-                    }
+                    let (undone_move, _player, description) = self.move_history.pop().unwrap();
+                    println!("Undone: {} - {}", undone_move, description);
+                    moves_undone += 1;
+                } else {
+                    break;
                 }
             }
 
-            self.game = self.game_states[self.current_state_index].clone();
-            return true;
+            if moves_undone > 0 {
+                self.game = self.game_states[self.current_state_index].clone();
+
+                // Ensure we're back to the player's turn
+                if self.game.current_position().side_to_move() != self.player_color {
+                    println!("Warning: Not your turn after undo. Game state may be inconsistent.");
+                }
+
+                return true;
+            }
         }
 
+        println!("Cannot undo: No moves to undo.");
         false
     }
 
