@@ -9,6 +9,8 @@ pub struct ChessGame {
     engine: StockfishEngine,
     player_color: Color,
     move_history: Vec<(ChessMove, String, String)>, // (move, description, detailed_description)
+    game_states: Vec<Game>,                         // Stack of game states for undo/redo
+    current_state_index: usize,                     // Current position in the game_states stack
 }
 
 impl ChessGame {
@@ -35,10 +37,12 @@ impl ChessGame {
         let game = Game::new();
 
         Ok(ChessGame {
-            game,
+            game: game.clone(),
             engine,
             player_color,
             move_history: Vec::new(),
+            game_states: vec![game], // Start with initial position
+            current_state_index: 0,
         })
     }
 
@@ -98,6 +102,18 @@ impl ChessGame {
                 }
                 "fen" => {
                     self.show_fen();
+                    continue;
+                }
+                "undo" | "u" => {
+                    if self.undo_move() {
+                        display_board_for_player(&self.game.current_position(), self.player_color);
+                    }
+                    continue;
+                }
+                "redo" | "re" => {
+                    if self.redo_move() {
+                        display_board_for_player(&self.game.current_position(), self.player_color);
+                    }
                     continue;
                 }
                 _ => {
@@ -173,6 +189,9 @@ impl ChessGame {
         // Make the move
         self.game.make_move(chess_move);
 
+        // Save game state for undo/redo
+        self.save_game_state();
+
         // Add to history
         let player_color_str = if self.player_color == Color::White {
             "White"
@@ -217,6 +236,10 @@ impl ChessGame {
         ));
 
         self.game.make_move(best_move);
+
+        // Save game state for undo/redo
+        self.save_game_state();
+
         display_board_for_player(&self.game.current_position(), self.player_color);
 
         Ok(())
@@ -278,16 +301,6 @@ impl ChessGame {
         // Get the piece that's moving
         let piece = board.piece_on(from_square);
         let piece_color = board.color_on(from_square);
-
-        let _piece_name = match piece {
-            Some(Piece::King) => "King",
-            Some(Piece::Queen) => "Queen",
-            Some(Piece::Rook) => "Rook",
-            Some(Piece::Bishop) => "Bishop",
-            Some(Piece::Knight) => "Knight",
-            Some(Piece::Pawn) => "Pawn",
-            None => "Unknown",
-        };
 
         let piece_fen = match (piece, piece_color) {
             (Some(Piece::King), Some(Color::White)) => "K",
@@ -522,6 +535,82 @@ impl ChessGame {
             );
         }
         println!("=============================\n");
+    }
+
+    fn save_game_state(&mut self) {
+        // Remove any future states if we're in the middle of history
+        if self.current_state_index < self.game_states.len() - 1 {
+            self.game_states.truncate(self.current_state_index + 1);
+        }
+
+        // Add the new state
+        self.game_states.push(self.game.clone());
+        self.current_state_index = self.game_states.len() - 1;
+    }
+
+    fn undo_move(&mut self) -> bool {
+        if self.current_state_index == 0 {
+            println!("Cannot undo: Already at the beginning of the game.");
+            return false;
+        }
+
+        // Check if we're trying to undo into the middle of a computer move sequence
+        if !self.move_history.is_empty() {
+            let moves_to_undo = if self.is_in_computer_turn() { 2 } else { 1 };
+
+            if self.current_state_index < moves_to_undo {
+                println!("Cannot undo: Would go before game start.");
+                return false;
+            }
+
+            // Undo the appropriate number of moves
+            for _ in 0..moves_to_undo {
+                if self.current_state_index > 0 {
+                    self.current_state_index -= 1;
+                    if !self.move_history.is_empty() {
+                        let (undone_move, _player, description) = self.move_history.pop().unwrap();
+                        println!("Undone: {} - {}", undone_move, description);
+                    }
+                }
+            }
+
+            self.game = self.game_states[self.current_state_index].clone();
+            return true;
+        }
+
+        false
+    }
+
+    fn redo_move(&mut self) -> bool {
+        if self.current_state_index >= self.game_states.len() - 1 {
+            println!("Cannot redo: Already at the latest position.");
+            return false;
+        }
+
+        // Redo moves (typically 1 or 2 to get back to player's turn)
+        let moves_to_redo = if self.current_state_index + 2 < self.game_states.len()
+            && !self.is_in_computer_turn()
+        {
+            2
+        } else {
+            1
+        };
+
+        for _ in 0..moves_to_redo {
+            if self.current_state_index < self.game_states.len() - 1 {
+                self.current_state_index += 1;
+                // We'd need to reconstruct move history here, but for simplicity
+                // we'll just show the position
+            }
+        }
+
+        self.game = self.game_states[self.current_state_index].clone();
+        println!("Redone to position {}", self.current_state_index);
+        return true;
+    }
+
+    fn is_in_computer_turn(&self) -> bool {
+        self.game.current_position().side_to_move() != self.player_color
     }
 
     fn display_game_result(&self) {

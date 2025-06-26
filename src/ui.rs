@@ -19,27 +19,25 @@ fn display_board_white_perspective(board: &Board) {
 
     for rank in (0..8).rev() {
         print!("{} │", rank + 1);
-        
+
         for file in 0..8 {
-            let square = Square::make_square(
-                chess::Rank::from_index(rank),
-                chess::File::from_index(file),
-            );
-            
+            let square =
+                Square::make_square(chess::Rank::from_index(rank), chess::File::from_index(file));
+
             let piece_char = get_piece_char(board, square);
             print!(" {} │", piece_char);
         }
-        
+
         print!(" {}", rank + 1);
-        
+
         if rank > 0 {
             println!("\n  ├───┼───┼───┼───┼───┼───┼───┼───┤");
         }
     }
-    
+
     println!("\n  └───┴───┴───┴───┴───┴───┴───┴───┘");
     println!("    a   b   c   d   e   f   g   h\n");
-    
+
     display_game_status(board);
 }
 
@@ -49,27 +47,25 @@ fn display_board_black_perspective(board: &Board) {
 
     for rank in 0..8 {
         print!("{} │", rank + 1);
-        
+
         for file in (0..8).rev() {
-            let square = Square::make_square(
-                chess::Rank::from_index(rank),
-                chess::File::from_index(file),
-            );
-            
+            let square =
+                Square::make_square(chess::Rank::from_index(rank), chess::File::from_index(file));
+
             let piece_char = get_piece_char(board, square);
             print!(" {} │", piece_char);
         }
-        
+
         print!(" {}", rank + 1);
-        
+
         if rank < 7 {
             println!("\n  ├───┼───┼───┼───┼───┼───┼───┼───┤");
         }
     }
-    
+
     println!("\n  └───┴───┴───┴───┴───┴───┴───┴───┘");
     println!("    h   g   f   e   d   c   b   a\n");
-    
+
     display_game_status(board);
 }
 
@@ -91,7 +87,7 @@ fn display_game_status(board: &Board) {
         "Black"
     };
     println!("{}'s turn to move", turn);
-    
+
     // Show check status
     if board.checkers().popcnt() > 0 {
         println!("⚠️  {} is in check!", turn);
@@ -132,6 +128,8 @@ pub fn print_help() {
     println!("  • 'history' - Show move history");
     println!("  • 'show' or 'board' - Redisplay the current board");
     println!("  • 'fen' - Show FEN notation of current position");
+    println!("  • 'undo' or 'u' - Undo last move(s)");
+    println!("  • 'redo' or 're' - Redo undone move(s)");
     println!("  • 'h' or 'help' - Show this help");
     println!("  • 'q' or 'quit' - Quit the game");
     println!("\nMove format examples:");
